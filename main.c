@@ -708,9 +708,6 @@ void loop_drop()
 	uint8_t blue=0;
 	uint8_t state = 0;
 
-	setLed_xy(2,2,0xFF,0,0);
-	print();
-
 	while(1){
 		//Farbkreis durchgehen
 		if (state == 0)
@@ -762,6 +759,7 @@ void loop_drop()
 
 			setLed_xy(x,y,((normal*diff)*red)/255,((normal*diff)*green)/255,((normal*diff)*blue)/255);
 		}
+		_delay_ms(10);
 		print();
 	}
 
@@ -777,7 +775,7 @@ int main(void)
 	{
 		printf("error initializing SDL: %s\n", SDL_GetError());
 	}
-	win = SDL_CreateWindow("LEDS", 1000, 100, 500, 500,
+	win = SDL_CreateWindow("LEDS", 1000, 100, 800, 800,
 						   SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 	renderer = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
 #endif
