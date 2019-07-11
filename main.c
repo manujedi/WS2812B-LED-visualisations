@@ -20,7 +20,7 @@
 
 #define LEDS 256
 #define LEDS_PER_STRIP 16
-#define LEDS_PER_ROW LEDS/LEDS_PER_STRIP
+#define LEDS_PER_ROW (LEDS/LEDS_PER_STRIP)
 #define BYTES_PER_LED 3
 
 #define GOL_SIZE LEDS
@@ -681,8 +681,8 @@ void loop_sun()
 
 unsigned int sqrt32(unsigned long n)
 {
-	unsigned int c = 0x8000;
-	unsigned int g = 0x8000;
+	uint32_t c = 0x8000;
+	uint32_t g = 0x8000;
 
 	for(;;) {
 		if(g*g > n)
@@ -696,13 +696,73 @@ unsigned int sqrt32(unsigned long n)
 
 void loop_drop()
 {
+	uint16_t normal = 255/sqrt32(2 * ((LEDS_PER_STRIP/2)*10) * ((LEDS_PER_ROW/2)*10));
+	int16_t d_x;
+	int16_t d_y;
+	uint8_t x;
+	uint8_t y;
+	uint16_t diff;
+
+	uint8_t red=0;
+	uint8_t green=0;
+	uint8_t blue=0;
+	uint8_t state = 0;
+
+	setLed_xy(2,2,0xFF,0,0);
+	print();
 
 	while(1){
-		for (int x = 0; x < LEDS; ++x){
-
-
-
+		//Farbkreis durchgehen
+		if (state == 0)
+		{
+			red--;
+			blue++;
+			if (blue == 255)
+			{
+				red = 0;
+				state = 1;
+			}
 		}
+		else if (state == 1)
+		{
+			blue--;
+			green++;
+			if (green == 255)
+			{
+				blue = 0;
+				state = 2;
+			}
+		}
+		else if (state == 2)
+		{
+			green--;
+			red++;
+			if (red == 255)
+			{
+				green = 0;
+				state = 0;
+			}
+		}
+
+		for (int i = 0; i < LEDS; ++i){
+
+			x = i/LEDS_PER_ROW;
+			y = i%LEDS_PER_STRIP;
+
+			d_x = LEDS_PER_ROW/2 - x;
+			//mult*10 for accuracy
+			d_x*=10;
+			d_x = (d_x < 0) ? -d_x : d_x;
+
+			d_y = LEDS_PER_STRIP/2 - y;
+			d_y*=10;
+			d_y = (d_y < 0) ? -d_y : d_y;
+
+			diff = sqrt32(d_x*d_x + d_y*d_y);
+
+			setLed_xy(x,y,((normal*diff)*red)/255,((normal*diff)*green)/255,((normal*diff)*blue)/255);
+		}
+		print();
 	}
 
 }
