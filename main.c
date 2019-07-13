@@ -16,6 +16,7 @@
 #define F_CPU 20000000UL
 #include <avr/io.h>
 #include <util/delay.h>
+#include <avr/sleep.h>
 #endif
 
 #define LEDS 256
@@ -52,6 +53,7 @@ uint8_t DDRF;
 uint8_t DDRK;
 
 #define _delay_ms(X) SDL_Delay(X)
+#define sleep_mode() while(1){_delay_ms(1000);}
 
 #endif
 
@@ -413,9 +415,17 @@ void print()
 int loop_farben(void)
 {
 	uint8_t state = 0;
-	uint8_t red = 255;
-	uint8_t green = 0;
+	uint8_t red = 0;
+	uint8_t green = 255;
 	uint8_t blue = 0;
+
+	for (int j = LEDS-1; j >= 0; --j)
+	{
+		setLed(j,red,green,0);
+		green--;
+		red++;
+	}
+	green=0;
 
 	int i = 0;
 	while (1)
@@ -765,6 +775,119 @@ void loop_drop()
 
 }
 
+void loop_blue()
+{
+	for (int i = 0; i < LEDS; ++i)
+	{
+		setLed(i,0,0,0xFF);
+	}
+	print();
+	sleep_mode();
+}
+
+void loop_dick()
+{
+	uint8_t pen_red=255;
+	uint8_t pen_green=239;
+	uint8_t pen_blue=213;
+
+	uint8_t ejac_red = 0xFF;
+	uint8_t ejac_green = 0xFF;
+	uint8_t ejac_blue = 0xFF;
+
+	uint16_t delay = 200;
+
+	//ball one
+	setLed_xy(0, 0, pen_red, pen_green, pen_blue);
+	setLed_xy(0, 1, pen_red, pen_green, pen_blue);
+	setLed_xy(1, 2, pen_red, pen_green, pen_blue);
+	setLed_xy(1, 3, pen_red, pen_green, pen_blue);
+	setLed_xy(2, 4, pen_red, pen_green, pen_blue);
+	setLed_xy(3, 3, pen_red, pen_green, pen_blue);
+	setLed_xy(3, 2, pen_red, pen_green, pen_blue);
+	setLed_xy(4, 1, pen_red, pen_green, pen_blue);
+	setLed_xy(4, 0, pen_red, pen_green, pen_blue);
+
+	setLed_xy(5, 0, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 1, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 2, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 3, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 4, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 5, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 6, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 7, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 8, pen_red, pen_green, pen_blue);
+	setLed_xy(5, 9, pen_red, pen_green, pen_blue);
+
+	setLed_xy(6, 10, pen_red, pen_green, pen_blue);
+	setLed_xy(6, 11, pen_red, pen_green, pen_blue);
+
+
+	setLed_xy(7, 9, pen_red, pen_green, pen_blue);
+	setLed_xy(8, 9, pen_red, pen_green, pen_blue);
+
+	setLed_xy(7, 12, pen_red, pen_green, pen_blue);
+	setLed_xy(8, 12, pen_red, pen_green, pen_blue);
+
+	setLed_xy(7, 12, pen_red, pen_green, pen_blue);
+	setLed_xy(8, 12, pen_red, pen_green, pen_blue);
+
+	setLed_xy(9, 10, pen_red, pen_green, pen_blue);
+	setLed_xy(9, 11, pen_red, pen_green, pen_blue);
+
+	setLed_xy(10, 0, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 1, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 2, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 3, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 4, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 5, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 6, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 7, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 8, pen_red, pen_green, pen_blue);
+	setLed_xy(10, 9, pen_red, pen_green, pen_blue);
+
+	//ball two
+	setLed_xy(11, 0, pen_red, pen_green, pen_blue);
+	setLed_xy(11, 1, pen_red, pen_green, pen_blue);
+	setLed_xy(12, 2, pen_red, pen_green, pen_blue);
+	setLed_xy(12, 3, pen_red, pen_green, pen_blue);
+	setLed_xy(13, 4, pen_red, pen_green, pen_blue);
+	setLed_xy(14, 3, pen_red, pen_green, pen_blue);
+	setLed_xy(14, 2, pen_red, pen_green, pen_blue);
+	setLed_xy(15, 1, pen_red, pen_green, pen_blue);
+	setLed_xy(15, 0, pen_red, pen_green, pen_blue);
+
+	while (1){
+		setLed_xy(9, 13, ejac_red, ejac_green, ejac_blue);
+		print();
+		setLed_xy(9, 13, 0, 0, 0);
+		_delay_ms(delay);
+
+		setLed_xy(9, 14, ejac_red, ejac_green, ejac_blue);
+		print();
+		setLed_xy(9, 14, 0, 0, 0);
+		_delay_ms(delay);
+
+		setLed_xy(10, 15, ejac_red, ejac_green, ejac_blue);
+		print();
+		setLed_xy(10, 15, 0, 0, 0);
+		_delay_ms(delay);
+
+		setLed_xy(11, 15, ejac_red, ejac_green, ejac_blue);
+		print();
+		setLed_xy(11, 15, 0, 0, 0);
+		_delay_ms(delay);
+
+		setLed_xy(12, 15, ejac_red, ejac_green, ejac_blue);
+		print();
+		setLed_xy(12, 15, 0, 0, 0);
+		_delay_ms(delay);
+
+		print();
+		_delay_ms(3*delay);
+	}
+}
+
 int main(void)
 {
 	DDRF |= 0xFF;
@@ -785,5 +908,7 @@ int main(void)
 	//loop_rand_gol();
 	//loop_gol_big();
 	//loop_sun();
-	loop_drop();
+	//loop_drop();
+	//loop_blue();
+	loop_dick();
 }
