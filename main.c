@@ -68,7 +68,7 @@ uint8_t UDR0;
 #define _delay_ms(X) SDL_Delay(X)
 #define sleep_mode() while(1){_delay_ms(1000);}
 #define sei() ;
-#define itoa(X,Y,Z) sprintf(Y,"%d",X)
+#define itoa(X, Y, Z) sprintf(Y,"%d",X)
 
 
 #endif
@@ -88,6 +88,9 @@ uint32_t a = 48271u;
 uint32_t m = 0x7fffffff;
 
 volatile uint8_t next = 0;
+volatile uint8_t command = 0;
+
+void setLed_xy(uint16_t x, uint16_t y, uint8_t red, uint8_t green, uint8_t blue);
 
 #define BUFFER_SIZE 100
 
@@ -182,18 +185,21 @@ void init_uart()
 	sei();
 }
 
-void uart_send_string(char* c){
+void uart_send_string(char* c)
+{
 	while (*c)
 	{
-		uart_out_save((uint8_t)*c);
+		while(uart_out_save((uint8_t) *c))
+			_delay_ms(1);
 		c++;
 	}
 }
 
-void uart_send_int(char* c){
+void uart_send_int(char* c)
+{
 	while (*c)
 	{
-		uart_out_save((uint8_t)*c);
+		uart_out_save((uint8_t) *c);
 		c++;
 	}
 }
@@ -203,7 +209,48 @@ void evaluateInput()
 	uint8_t c;
 	if (!uart_in_read(&c))
 	{
+		//next
+		if (c == 'n')
+		{
+			uart_send_string("Switching to the next preset\r\n");
 			next = 1;
+		}
+
+		//set
+		else if (c == 's')
+		{
+			if(uart_in_read(&c) || c != ' ')
+			{
+				uart_send_string("ERROR PARSING COMMAND \r\n");
+				return;
+			}
+			uart_in_read(&c);
+
+			//set led (s l x y r g b)
+			if (c == 'l')
+			{
+				uint8_t values[5] = {0,0,0,0,0};
+				uint8_t itt = 0;
+				//remove the space
+				uart_in_read(&c);
+				while(!uart_in_read(&c))
+				{
+					//next value
+					if (c == ' ')
+						itt++;
+						//a number
+					else if (c > 0x2F && c < 0x3A)
+					{
+						values[itt] *= 10;
+						values[itt] += c - 0x30;
+					}
+				}
+				uart_send_string("Setting Led\r\n");
+				setLed_xy(values[0],values[1],values[2],values[3],values[4]);
+			}
+		}else{
+			uart_send_string("ERROR PARSING COMMAND \r\n");
+		}
 	}
 
 	//cleanup
@@ -232,8 +279,9 @@ void uart_pc_helper(int param)
 		c = getchar();
 		uart_in_save(c);
 	}
-	evaluateInput();
+	command = 1;
 	fflush(stdout);
+	fflush(stdin);
 }
 
 void uart_send()
@@ -254,8 +302,10 @@ void uart_send()
 ISR(USART0_RX_vect){
 		uint8_t c = UDR0;
 		uart_in_save(c);
-		if(c == 0x0D)
-			evaluateInput();
+		//disable this if you do not want an echo
+		uart_out_save(c);
+		if(c == '\r')
+			command = 1;
 }
 
 ISR(USART0_TX_vect){
@@ -267,6 +317,12 @@ ISR(USART0_TX_vect){
 void competetiveThreading()
 {
 	uart_send();
+	if (command)
+	{
+		evaluateInput();
+		command = 0;
+		uart_send();
+	}
 }
 
 uint32_t rand_seed()
@@ -669,7 +725,7 @@ void loop_farben(void)
 			}
 		}
 
-		char c[5];
+/*		char c[5];
 
 		uart_send_string("r: ");
 		itoa(red,c,10);
@@ -682,7 +738,7 @@ void loop_farben(void)
 		uart_send_string(" b: ");
 		itoa(blue,c,10);
 		uart_send_string(c);
-		uart_send_string("\r\n");
+		uart_send_string("\r\n");*/
 
 		//Erste led setzten
 		setLed(0, red, green, blue);
@@ -830,6 +886,12 @@ void loop_rand_gol(void)
 
 			while (i)
 			{
+				if (next)
+				{
+					next = 0;
+					return;
+				}
+				competetiveThreading();
 				//Farbkreis durchgehen
 				if (state == 0)
 				{
@@ -1202,6 +1264,21 @@ void loop_uart()
 
 }
 
+void loop_printLeds()
+{
+	while (1)
+	{
+		if (next)
+		{
+			next = 0;
+			return;
+		}
+		competetiveThreading();
+		print();
+		_delay_ms(1000);
+	}
+}
+
 int main(void)
 {
 	DDRF |= 0xFF;
@@ -1210,12 +1287,11 @@ int main(void)
 
 	init_uart();
 
-	char* c = "BOOTING...\r\n";
-	while (*c)
-	{
-		uart_out_save(*c);
-		c++;
-	}
+	uart_send_string("BOOTING...\r\n");
+	uart_send_string("n + enter for next preset\r\n");
+	uart_send_string("s set\r\n");
+	uart_send_string("\tl led (s l x y r g b)\r\n");
+	uart_send_string("\tTODO...\r\n");
 	uart_send();
 
 #ifdef PC
@@ -1246,7 +1322,7 @@ int main(void)
 	}
 */
 	//loop_uart();
-	while(1)
+	while (1)
 	{
 		uart_send_string("Switching to rainbow\r\n");
 		loop_farben();
@@ -1256,9 +1332,14 @@ int main(void)
 		//loop_gol_big();
 		uart_send_string("Switching to SUN\r\n");
 		loop_sun();
+		uart_send_string("Switching to DROP\r\n");
 		loop_drop();
-		loop_blue();
+		//uart_send_string("Switching to BLUE\r\n");
+		//loop_blue();
+		uart_send_string("Switching to DICK\r\n");
 		loop_dick();
+		uart_send_string("Switching to SETLEDS\r\n");
+		loop_printLeds();
 		//loop_uart();
 	}
 }
