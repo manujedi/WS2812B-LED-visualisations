@@ -9,6 +9,8 @@
 #include <SDL2/SDL_timer.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
@@ -66,6 +68,8 @@ uint8_t UDR0;
 #define _delay_ms(X) SDL_Delay(X)
 #define sleep_mode() while(1){_delay_ms(1000);}
 #define sei() ;
+#define itoa(X,Y,Z) sprintf(Y,"%d",X)
+
 
 #endif
 
@@ -82,6 +86,8 @@ uint8_t gol_h[(GOL_ROWS / 8) * 3];
 uint32_t seed = 2345;
 uint32_t a = 48271u;
 uint32_t m = 0x7fffffff;
+
+volatile uint8_t next = 0;
 
 #define BUFFER_SIZE 100
 
@@ -176,6 +182,34 @@ void init_uart()
 	sei();
 }
 
+void uart_send_string(char* c){
+	while (*c)
+	{
+		uart_out_save((uint8_t)*c);
+		c++;
+	}
+}
+
+void uart_send_int(char* c){
+	while (*c)
+	{
+		uart_out_save((uint8_t)*c);
+		c++;
+	}
+}
+
+void evaluateInput()
+{
+	uint8_t c;
+	if (!uart_in_read(&c))
+	{
+			next = 1;
+	}
+
+	//cleanup
+	while (!uart_in_read(&c));
+}
+
 #ifdef AVR
 void uart_send()
 {
@@ -198,6 +232,7 @@ void uart_pc_helper(int param)
 		c = getchar();
 		uart_in_save(c);
 	}
+	evaluateInput();
 	fflush(stdout);
 }
 
@@ -212,11 +247,15 @@ void uart_send()
 	}
 }
 
+
 #endif
 
 #ifdef AVR
 ISR(USART0_RX_vect){
-		uart_in_save(UDR0);
+		uint8_t c = UDR0;
+		uart_in_save(c);
+		if(c == 0x0D)
+			evaluateInput();
 }
 
 ISR(USART0_TX_vect){
@@ -224,6 +263,11 @@ ISR(USART0_TX_vect){
 }
 #endif
 
+
+void competetiveThreading()
+{
+	uart_send();
+}
 
 uint32_t rand_seed()
 {
@@ -566,7 +610,7 @@ void print()
 
 //Farbverlauf
 
-int loop_farben(void)
+void loop_farben(void)
 {
 	uint8_t state = 0;
 	uint8_t red = 0;
@@ -584,6 +628,13 @@ int loop_farben(void)
 	int i = 0;
 	while (1)
 	{
+		if (next)
+		{
+			next = 0;
+			return;
+		}
+		competetiveThreading();
+
 		print();
 
 		//Farbkreis durchgehen
@@ -618,6 +669,21 @@ int loop_farben(void)
 			}
 		}
 
+		char c[5];
+
+		uart_send_string("r: ");
+		itoa(red,c,10);
+		uart_send_string(c);
+
+		uart_send_string(" g: ");
+		itoa(green,c,10);
+		uart_send_string(c);
+
+		uart_send_string(" b: ");
+		itoa(blue,c,10);
+		uart_send_string(c);
+		uart_send_string("\r\n");
+
 		//Erste led setzten
 		setLed(0, red, green, blue);
 
@@ -632,18 +698,24 @@ int loop_farben(void)
 		_delay_ms(100);
 	}
 
-	return 0;
+	return;
 }
 
 
 //Game of Life
-int loop_gol(void)
+void loop_gol(void)
 {
 
 	//define preset here
 
 	while (1)
 	{
+		if (next)
+		{
+			next = 0;
+			return;
+		}
+
 		_delay_ms(200);
 
 		for (int j = 0; j < LEDS; ++j)
@@ -657,14 +729,20 @@ int loop_gol(void)
 		print();
 		calcGOL();
 	}
-	return 0;
+	return;
 }
 
 //Game of Life
-int loop_gol_big(void)
+void loop_gol_big(void)
 {
 	while (1)
 	{
+		if (next)
+		{
+			next = 0;
+			return;
+		}
+		competetiveThreading();
 
 		//Fill with random data
 		for (int j = 0; j < GOL_SIZE / 2; ++j)
@@ -697,12 +775,12 @@ int loop_gol_big(void)
 		}
 
 	}
-	return 0;
+	return;
 }
 
 
 //Random mit GOL
-int loop_rand_gol(void)
+void loop_rand_gol(void)
 {
 	uint8_t state = 0;
 	uint8_t red = 0;
@@ -717,6 +795,12 @@ int loop_rand_gol(void)
 
 	while (1)
 	{
+		if (next)
+		{
+			next = 0;
+			return;
+		}
+		competetiveThreading();
 
 		print();
 		if (rand_seed() % 0x100 > 180)
@@ -793,7 +877,7 @@ int loop_rand_gol(void)
 			}
 		}
 	}
-	return 0;
+	return;
 }
 
 void loop_sun()
@@ -808,6 +892,13 @@ void loop_sun()
 
 	while (1)
 	{
+		if (next)
+		{
+			next = 0;
+			return;
+		}
+		competetiveThreading();
+
 		setLed_xy(0, 0, red, green, blue);
 		if (red < 249)
 			red += 5;
@@ -822,15 +913,11 @@ void loop_sun()
 			//printf("x: %i y: %i to x: %i y: %i\n", j-1, j - 1, j, j);
 			ledcopy_xy(j - 1, j - 1, j, j);
 			for (int inner = j - 1; inner >= 0; --inner)
-			{
-				//printf("x: %i y: %i to x: %i y: %i\n", inner, j - 1, inner, j);
 				ledcopy_xy(inner, j - 1, inner, j);
-			}
+
 			for (int inner = j - 1; inner >= 0; --inner)
-			{
-				//printf("x: %i y: %i to x: %i y: %i\n", j - 1, inner, j, inner);
 				ledcopy_xy(j - 1, inner, j, inner);
-			}
+
 			_delay_ms(10);
 		}
 
@@ -876,6 +963,13 @@ void loop_drop()
 
 	while (1)
 	{
+		if (next)
+		{
+			next = 0;
+			return;
+		}
+		competetiveThreading();
+
 		//Farbkreis durchgehen
 		if (state == 0)
 		{
@@ -1018,6 +1112,13 @@ void loop_dick()
 
 	while (1)
 	{
+		if (next)
+		{
+			next = 0;
+			return;
+		}
+		competetiveThreading();
+
 		setLed_xy(9, 13, ejac_red, ejac_green, ejac_blue);
 		print();
 		setLed_xy(9, 13, 0, 0, 0);
@@ -1048,12 +1149,13 @@ void loop_dick()
 	}
 }
 
-void loop_uart(){
+void loop_uart()
+{
 
 	//loop input and print it as hex (for easier comparison later)
-	while (0)
+	while (1)
 	{
-		char copy;
+		uint8_t copy;
 		uint8_t helper;
 		while (!uart_in_read(&copy))
 		{
@@ -1080,16 +1182,18 @@ void loop_uart(){
 		_delay_ms(1000);
 	}
 	//echo the input
-	while(1){
-		char copy;
+	while (1)
+	{
+		uint8_t copy;
 		while (!uart_in_read(&copy))
 		{
 			//why do we not get newline? only CR????
-			if(copy == 0xD)
+			if (copy == '\n' || copy == '\r')
 			{
 				uart_out_save(0x0D);
 				uart_out_save('\n');
-			}else
+			}
+			else
 				uart_out_save(copy);
 		}
 		uart_send();
@@ -1105,6 +1209,14 @@ int main(void)
 	DDRB |= (1 << 7);
 
 	init_uart();
+
+	char* c = "BOOTING...\r\n";
+	while (*c)
+	{
+		uart_out_save(*c);
+		c++;
+	}
+	uart_send();
 
 #ifdef PC
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
@@ -1133,15 +1245,20 @@ int main(void)
 		_delay_ms(100);
 	}
 */
-
-
-	//loop_farben();
-	//loop_gol();
-	//loop_rand_gol();
-	//loop_gol_big();
-	//loop_sun();
-	//loop_drop();
-	//loop_blue();
-	//loop_dick();
-	loop_uart();
+	//loop_uart();
+	while(1)
+	{
+		uart_send_string("Switching to rainbow\r\n");
+		loop_farben();
+		//loop_gol();
+		uart_send_string("Switching to Random GOL\r\n");
+		loop_rand_gol();
+		//loop_gol_big();
+		uart_send_string("Switching to SUN\r\n");
+		loop_sun();
+		loop_drop();
+		loop_blue();
+		loop_dick();
+		//loop_uart();
+	}
 }
