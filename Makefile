@@ -7,9 +7,9 @@ TARGET=main
 OBJECT_FILES=main.o
 
 all: 	$(TARGET).hex
-	sudo avrdude -p atmega2560 -c STK500 -P /dev/ttyUSB0 -U flash:w:main.hex
+	sudo avrdude -p atmega2560 -c STK500 -P $(PORT) -U flash:w:main.hex
 #	sudo cat /home/manu/Dokumente/Code/tool_mySmartUSB-Kommandos_de_en_fr/BoardPowerOn.txt > /dev/ttyUSB0
-	sudo sh -c 'cat /home/manu/Dokumente/Code/tool_mySmartUSB-Kommandos_de_en_fr/BoardPowerOn.txt > /dev/ttyUSB0'
+	sudo sh -c 'cat /home/manu/Dokumente/Code/tool_mySmartUSB-Kommandos_de_en_fr/BoardPowerOn.txt > $(PORT)'
 	
 clean:
 	rm -f *.o *.hex *.obj *.hex
@@ -22,5 +22,5 @@ clean:
 	$(CC) $(CFLAGS) $(OBJECT_FILES) $(LDFLAGS) -o $@
 
 program: $(TARGET).hex
-	sudo avrdude -p m2560 -c STK500 -P /dev/ttyUSB0 -U flash:w:main.hex
-	sudo -c 'cat /home/manu/Dokumente/Code/tool_mySmartUSB-Kommandos_de_en_fr/BoardPowerOn.txt > /dev/ttyUSB0'
+	sudo avrdude -p m2560 -c STK500 -P $(PORT) -U flash:w:main.hex
+	sudo -c 'cat /home/manu/Dokumente/Code/tool_mySmartUSB-Kommandos_de_en_fr/BoardPowerOn.txt > $(PORT)'
